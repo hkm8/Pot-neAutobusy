@@ -1,0 +1,154 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml;
+
+namespace Autobusy
+{
+    class Runner
+    {
+
+        //WĄTEK GŁÓWNY
+        static void Main(string[] args)
+        {
+
+            List<Vehicle> bazaAutobusow = utworzBazeAutobusow();
+            pokazBazeAutobusow();
+            pokazWykryteAutobusy();
+            Console.ReadLine();
+
+        }
+
+
+        //UTWORZENIE  BAZY POJAZDOW
+        public static List<Vehicle> utworzBazeAutobusow()
+        {
+            XmlTextReader reader = new XmlTextReader("Input.xml");
+            List<Vehicle> bazaAutobusow = new List<Vehicle>();
+
+            while (reader.Read())
+            {
+
+                //tworzenie obiektu autobusu na bazie pliku XML
+                if ((reader.NodeType == XmlNodeType.Element) && (reader.Name == "Number"))
+                {
+
+                    string numerAutobusu = reader.ReadElementContentAsString();
+                    Vehicle autobus = new Vehicle();
+                    autobus.Number = numerAutobusu;
+                    bazaAutobusow.Add(autobus);
+
+                }
+
+                if ((reader.NodeType == XmlNodeType.Element) && (reader.Name == "DetectedVehicle"))
+                {
+                    break;
+                }
+
+            }
+            return bazaAutobusow;
+        }
+
+        //WYSWIETLENIE BAZY POJAZDOW
+        public  static void pokazBazeAutobusow()
+        {
+            List<Vehicle> bazaAutobusow = utworzBazeAutobusow();
+            //baza wszystkich mozliwych autobusow
+            Console.WriteLine("Dostepne autobusy to: ");
+            foreach (Vehicle pojazd in bazaAutobusow)
+            {
+                Console.WriteLine(pojazd.Number);
+            }
+        }
+
+        //UTWORZENIE LISTY WYKRYTYCH POJAZDOW
+        public static List<DetectedVehicle> wykryjAutobusy()
+        {
+            XmlTextReader reader = new XmlTextReader("Input.xml");
+            List<DetectedVehicle> wykryteAutobusy = new List<DetectedVehicle>();
+            while (reader.Read())
+            {
+
+                //tworzenie obiektu wykrytego autobusu na wjezdzie na plac na bazie pliku XML
+
+                //ZNALEZIENIE NUMERU WYKRYTEGO AUTOBUSU
+                if ((reader.NodeType == XmlNodeType.Element) && (reader.Name == "Number"))
+                {
+                    DetectedVehicle wykrytyAutobus = new DetectedVehicle();                             //TWORZYMY NOWY AUTOBUS
+                    string numerAutobusu = reader.ReadElementContentAsString();                         //ZCZYTUJEMY NUMER AUTOBUSU Z XML
+                    wykrytyAutobus.Number = numerAutobusu;                                              //PRZYPISUJEMY NUMER NOWO UTWORZONEMU OBIEKTOWI
+                    wykryteAutobusy.Add(wykrytyAutobus);                                                //DODAJEMY AUTOBUS DO LISTY AUTOBUSOW
+
+                }
+
+                //ZNALEZIENIE TOPOLOGYNODE WYKRYTEGO AUTOBUSU
+                if ((reader.NodeType == XmlNodeType.Element) && (reader.Name == "TopologyNode"))
+                {
+                    DetectedVehicle wykrytyAutobus = wykryteAutobusy[wykryteAutobusy.Count - 1];        //TWORZYMY NOWY AUTOBUS NA PODSTAWIE PPRZEDNIEGO (POBIERAMY ISTNIEJACY AUTOBUS Z LISTY)
+                    string topologyNode = reader.ReadElementContentAsString();                          //ZCZYTUJEMY TOPOLOGYNODE Z XML
+                    wykrytyAutobus.TopologyNode = topologyNode;                                         //PRZYPISUJEMY TOPOLOGYNODE AUTOBUSOWI POBRANEMU Z LISTY
+                    wykryteAutobusy.RemoveAt(wykryteAutobusy.Count - 1);                                //USUWAMY PIERWOTNY AUTOBUS Z LISTY (TEN, KTORY MIAL TYLKO NUMER)
+                    wykryteAutobusy.Insert(wykryteAutobusy.Count, wykrytyAutobus);                      //DODAJEMY AUTOBUS, KTORY MA ZAROWNO NUMER JAK I TOPOLOGY NODE
+                }
+
+                //ZNALEZIENIE STATE WYKRYTEGO AUTOBUSU
+                if ((reader.NodeType == XmlNodeType.Element) && (reader.Name == "State"))
+                {
+                    //VehicleStatus state = reader.ReadElementContentAsString();                        //////////
+                    //wykrytyAutobus.State = state;                                                     //TO DO//
+                }                                                                                       /////////
+
+                //ZNALEZIENIE TIMESPAN WYKRYTEGO AUTOBUSU
+                if ((reader.NodeType == XmlNodeType.Element) && (reader.Name == "TimeSpan"))
+                {
+                    DetectedVehicle wykrytyAutobus = wykryteAutobusy[wykryteAutobusy.Count - 1];        //ANALOGICZNIE JAK WYZEJ
+                    DateTime timeSpan = reader.ReadElementContentAsDateTime();
+                    wykrytyAutobus.TimeSpan = timeSpan;
+                    wykryteAutobusy.RemoveAt(wykryteAutobusy.Count - 1);
+                    wykryteAutobusy.Insert(wykryteAutobusy.Count , wykrytyAutobus);
+                }
+
+            }
+
+            //USUWANIE ZBEDNYCH AUTOBUSOW Z POCZATKU LISTY (TE, KTORE MAJA TYLKO NUMER, ALE NIE INNE WARTOSCI TYPU TOPOLOGYNODE)
+            int x = 0;
+            for (int i = 0; i < wykryteAutobusy.Count; i++)
+            {
+                DetectedVehicle pojazdSprawdzany = wykryteAutobusy[i];
+
+                if (pojazdSprawdzany.TopologyNode == null)
+                {
+                    x++;
+                }
+            }
+            wykryteAutobusy.RemoveRange(0, x);
+            return wykryteAutobusy;
+        }
+
+        //WYSWIETLENIE LISTY WYKRYTYCH POJAZDOW
+        public static void pokazWykryteAutobusy()
+        {
+            List<DetectedVehicle> wykryteAutobusy = wykryjAutobusy();
+            //baza wszystkich mozliwych autobusow
+            Console.WriteLine("Wykryte autobusy to: ");
+            Console.WriteLine();
+            int i = 1;
+            Console.WriteLine(wykryteAutobusy.Capacity);
+            foreach (DetectedVehicle pojazd in wykryteAutobusy)
+            {
+                Console.WriteLine("Wykryty autobus {0}:", i);
+                Console.WriteLine("Numer:                   " + pojazd.Number);
+                Console.WriteLine("Aktualna lokalizacja:    " + pojazd.TopologyNode);
+                Console.WriteLine("Stan:                    " + pojazd.State);
+                Console.WriteLine("Aktualny czas:           " + pojazd.TimeSpan);
+                Console.WriteLine();
+                i++;
+            }
+        }
+    }
+}
+
+
+
